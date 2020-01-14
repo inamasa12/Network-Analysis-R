@@ -1,5 +1,5 @@
 
-setwd("C:/Users/mas/learning/nw")
+setwd("C:/Users/mas/learning/Network-Analysis-R")
 getwd()
 
 
@@ -535,11 +535,14 @@ one.dyad <- matrix(c(
 #sna
 library(sna)
 
-#近接中心性
+#離心中心性
+#最大距離の逆数
 graphcent(A)
+#近接中心性
+#最短距離の合計の逆数
+closeness(A)
 #標準化近接中心性
 #有効グラフの場合、強連結でないと算出できない
-closeness(A)
 closeness(B)
 closeness(B, cmode = "undirected")
 is.connected(B)
@@ -637,8 +640,206 @@ centr_betw(g1)$centralization
 centr_eigen(g1, scale = FALSE)$centralization
 
 
-windows(width = 14, height = 7)
-gplot(A)
-plot(g3)
-search()
-detach("package:sna")
+#Example
+
+#男性同性愛者の性関係ネットワーク
+
+detach(package:igraph)
+
+library(sna)
+library(statnet)
+
+edgelist <- matrix(c(1, 2, 2, 5, 3, 5, 4, 5, 5, 6, 5, 11, 7, 8, 8, 9, 9, 10, 8, 11, 11, 16,
+                     12, 16, 13, 14, 14, 16, 15, 16, 16, 17, 16, 20, 16, 21, 16, 22, 18, 20, 19, 20, 19, 28, 22,
+                     23, 23, 24, 22, 26, 26, 27, 26, 28, 26, 31, 28, 29, 29, 30, 31, 32, 32, 33, 32, 34,
+                     33, 34, 34, 35, 31, 36, 36, 37, 26, 38, 38, 39, 38, 40),  ncol = 2, byrow = TRUE)
+nrow(edgelist)
+net <- matrix(0, 40, 40)
+
+for (i in 1:nrow(edgelist))
+  net[edgelist[i, 1], edgelist[i, 2]] <- 1
+
+net <- symmetrize(net)
+
+#情報中心性
+information <- infocent(net)
+#媒介中心性
+betweenness <- betweenness(net, rescale = TRUE) * 100
+#近接中心性
+closeness <- closeness(net)
+#離心中心性
+degree <- degree(net) /  (2 * (40 - 1))
+
+#結果の整形
+si <- sort(information, index.return = TRUE, decreasing = TRUE)
+sb <- sort(betweenness, index.return = TRUE, decreasing = TRUE)
+sc <- sort(closeness, index.return = TRUE, decreasing = TRUE)
+sd <- sort(degree, index.return = TRUE, decreasing = TRUE)
+
+centralities <- matrix(c(si[[2]], round(si[[1]], 3),
+                       sb[[2]], round(sb[[1]], 1),
+                       sc[[2]], round(sc[[1]], 3),
+                       sd[[2]], round(sd[[1]], 3)), nrow = 40)
+colnames(centralities) <- c("id", "情報中心性", "id", "媒介中心性",
+                            "id", "近接中心性", "id", "次数中心性")
+
+
+#二部グラフの中心性
+A <- matrix(c(
+  1, 1, 0,
+  1, 0, 1,
+  0, 1, 1,
+  0, 0, 1),
+  nrow = 4, byrow = TRUE)
+
+rownames(A) <- paste("n", 1:4, sep = "")
+colnames(A) <- paste("m", 1:3, sep = "")
+
+#二部グラフを何らかの隣接行列に変換
+#頂点を共有する頂点にエッジを引く
+B <- A %*% t(A)
+B[which(B >= 1)] <-1
+diag(B) <- 0
+
+#二部グラフをそのまま正方行列に変換
+m <- ncol(A)
+n <- nrow(A)
+C <- rbind(cbind(matrix(0, m, m), t(A)), cbind(A, matrix(0, n, n)))
+colnames(C) <- c(colnames(A), rownames(A))
+
+#変換して作成した正方行列に対して従来の中心性分析を行う
+
+ceo_club <- matrix(c(
+  0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+  0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+  0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0,
+  1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1,
+  0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+  0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+  0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1,
+  1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1,
+  0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
+  0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+  1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0),
+  nrow = 26, byrow = TRUE)
+
+#CEO
+rownames(ceo_club) <- paste("n", 1:26, sep = "")
+#comitte
+colnames(ceo_club) <- paste("m", 1:15, sep = "")
+
+#共通のクラブを有するCEO
+ceo <-ceo_club %*% t(ceo_club)
+ceo[which(ceo >= 1)] <- 1
+diag(ceo) <-0
+
+#共通のCEOを有するクラブ
+club <- t(ceo_club) %*% ceo_club
+club[which(club >= 1)] <- 1
+diag(club) <- 0
+
+#そのまま正方行列に変換
+bipartite <- rbind(cbind(matrix(0, 15, 15), t(ceo_club)),
+                   cbind(ceo_club, matrix(0, 26, 26)))
+
+library(sna)
+
+#次数中心性
+degree.ceo <- degree(ceo, gmode = "graph")
+degree.club <- degree(club, gmode = "graph")
+degree.bi <- degree(bipartite, gmode = "graph")
+
+#媒介中心性
+bet.ceo <- betweenness(ceo, gmode = "graph", ignore.eval = TRUE)
+bet.club <- betweenness(club, gmode = "graph", ignore.eval = TRUE)
+bet.bi <- betweenness(bipartite, gmode = "graph", ignore.eval = TRUE)
+
+#固有ベクトル中心性
+ev.ceo <- abs(eigen(ceo)$vectors[, 1])
+ev.club <- abs(eigen(club)$vectors[, 1])
+ev.bi <- abs(eigen(bipartite)$vectors[, 1])
+
+cor(degree.ceo, degree.bi[16:41])
+cor(degree.club,degree.bi[1:15])
+
+cor(bet.ceo, bet.bi[16:41])
+cor(bet.club,bet.bi[1:15])
+
+cor(ev.ceo, ev.bi[16:41])
+cor(ev.club,ev.bi[1:15])
+
+
+# Chapter5 ----------------------------------------------------------------
+
+A <- matrix(c(
+  0, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+  1, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+  1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+  0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 
+  0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+  nrow = 10, byrow = TRUE)
+
+B <- matrix(c(
+  0, 1, 1, 0, 1, 0, 0,
+  1, 0, 1, 0, 0, 0, 1,
+  1, 1, 0, 1, 1, 1, 0,
+  0, 0, 1, 0, 1, 1, 1,
+  1, 0, 1, 1, 0, 1, 0,
+  0, 0, 1, 1, 1, 0, 0,
+  0, 1, 0, 1, 0, 0, 0),
+  nrow = 7, byrow = TRUE)
+
+
+g1 <- graph_from_adjacency_matrix(A, mode = "undirected")
+
+library(sna)
+library(igraph)
+
+#連結成分
+
+#sna
+
+#構成要素
+components(A)
+#各種
+component.dist(A)
+#最大グループ
+component.largest(A, result = "membership")
+component.largest(A, result = "graph")
+
+#igraph
+
+#各種
+components(g1)
+#サイズ別のサブグループの割合
+component_distribution(g1)
+component_distribution(g1, cumulative = TRUE)
+
+#クリーク
+
+#sna
+clique.census(B, mode = "graph")
+
+#igraph
+g2 <- graph_from_adjacency_matrix(B, mode ="undirected")
+max_cliques(g2)
